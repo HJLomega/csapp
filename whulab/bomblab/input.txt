@@ -1,0 +1,7 @@
+Public speaking is very easy.
+0 1 3 6 10 15
+0 t 770
+12 43
+AAAA@C
+
+

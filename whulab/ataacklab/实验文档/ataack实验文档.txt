@@ -1,0 +1,453 @@
+1. attack lab
+1.   实验步骤
+
+1.1       第一步：获取文件
+
+在远程桌面中用浏览器访问网页：http://172.16.2.207:15513，输入你的学号和email地址，得到targetXXXX.tar文件。解压targetXXXX.tar文件（tar -xvf targetXXXX.tar）得到一个目录./targetXXXX，其中包含如下文件：
+
+?  README.txt：描述本目录内容的文件。
+
+?  ctarget：一个容易遭受code-injection攻击的可执行程序。
+
+?  rtarget：一个容易遭受return-oriented-programming攻击的可执行程序。
+
+?  cookie.txt：一个8位的十六进制码，是你的唯一标识符，用于验证身份。
+
+?  farm.c：你的目标“gadget farm”的源代码，在产生return-oriented programming攻击时会用到。
+
+?  hex2raw：一个生成攻击字符串的工具。
+
+1.2       要点说明
+
+?  要在我们提供的实验平台上完成该实验，我们不保证在其他平台上作出的结果能在我们的验证平台上成功执行。
+
+?  你的解答不能绕开程序中的验证代码。也就是说，ret指令使用的攻击字符串中注入的地址必须是一下几种之一：
+
+n  函数touch1，touch2或touch3的地址
+
+n  你注入的代码的地址
+
+n  gadget farm中gadget的地址
+
+?  只能从文件rtarget中地址范围在函数start_farm和end_farm之间的地址构造gadget。
+
+1.3   提交成绩
+
+务必在所有实验内容完成之后（三关共五阶段），点击“提交评测”提交成绩到希冀平台！否则系统无法记录分数。
+
+2.   目标程序
+
+CTARGET和RTARGET都是用getbuf函数从标准输入读入字符串，getbuf函数定义如下：
+
+1                unsigned getbuf()
+
+2                {
+
+3                                  char buf[BUFFER_SIZE]; ?
+
+4                                  Gets(buf); ?
+
+5                                  return 1; ?
+
+6                }
+
+函数Gets类似于标准库函数gets，从标准输入读入一个字符串（以’\n’或者end-of-file结束），将字符串（带null结束符）存储在指定的目的地址。从这段代码可以看出，目标地址是数组buf，声明为BUFFER_SIZE个字节。BUFFER_SIZE是一个编译时常量，在你的target程序生成时就具体确定了。
+
+     函数Gets()和gets()都无法确定目标缓冲区是否够大，能够存储下读入的字符串。它们都只会简单地拷贝字节序列，可能会超出目标地址处分配的存储空间的边界。
+
+Picture1.png
+
+
+         如果用户输入和getbuf读入的字符串足够短，getbuf会返回1，如下执行示例所示：
+
+         如果你输入的字符串很长，就会出错：
+
+Picture2.png
+
+（注意cookie的值会每个人有所不同。）RTARGET程序有类似的行为。正如错误消息提示的那样，超出缓冲区大小通常会导致程序状态被破坏，引起内存访问错误。你的任务是巧妙的设计输入给CTARGET和RTARGET的字符串，让它们做些更有趣的事情。这样的字符串称为攻击（exploit）字符串。
+
+CTARGET和RTARGET有这样一些命令行参数：
+
+-h：输出可能的命令行参数列表
+
+-q：不向打分服务器发送结果
+
+-i FILE：输入来自于文件FILE而不是标准输入
+
+一般来说，你的攻击字符串包含的字节值并不都对应着能够打印出来的字符的ASCII值。HEX2RAW程序的使用见附录A。
+
+要点说明：
+
+·       你的攻击字符串不能包含字节值0x0a，这是换行符（’\n’）的ASCII代码。Gets遇到这个字节时会认为你意在结束该字符串。
+
+·       HEX2RAW要求输入的十六进制值必须是两位的，值与值之间以一个或多个空白分隔。如果你想得到一个十六进制值为0的字节，必须输入00。要得到字0xdeadbeef，必须向HEX2RAW输入“ef be ad de”（注意顺序相反是因为使用的是小端法字节序）。
+
+ 
+
+本实验分为五个阶段，CTARGET的三个使用的是CI（code-injection），RTARGET的两个阶段使用的是ROP（return-oriented-programming），如图1所示。
+
+阶段
+
+程序
+
+关数
+
+方法
+
+函数
+
+分数
+
+1
+
+CTARGET
+
+1
+
+CI
+
+touch1
+
+10
+
+2
+
+CTARGET
+
+2
+
+CI
+
+touch2
+
+20
+
+3
+
+CTARGET
+
+3
+
+CI
+
+touch3
+
+20
+
+4
+
+RTARGET
+
+2
+
+ROP
+
+touch2
+
+35
+
+5
+
+RTARGET
+
+3
+
+ROP
+
+touch3
+
+15
+
+图1. attack lab阶段小结
+
+3.   实验内容第一部分：代码注入攻击
+
+前三个阶段，你的攻击字符串会攻击CTARGET程序。程序被设置成栈的位置每次执行都一样，这样一来栈上的数据就可以等效于可执行代码。这使得程序更容易遭受包含可执行代码字节编码的攻击字符串的攻击。
+
+3.1.        第一关
+
+在这一关中，你不用注入新的代码，你的攻击字符串要指引程序去执行一个已经存在的函数。
+
+CTARGET中函数test调用了函数getbuf，test的代码如下：
+
+1 void test()
+
+2 {
+
+3     int val;
+
+4     val = getbuf(); 
+
+5     printf("No exploit.  Getbuf returned 0x%x\n", val);
+
+6 }
+
+getbuf执行返回语句时（getbuf的第5行），按照规则，程序会继续执行test函数中的语句，而我们想改变这个行为。在文件ctarget中，函数touch1的代码如下：
+
+1 void touch1()
+
+2 {
+
+3     vlevel = 1;       /* Part of validation protocol */
+
+4     printf("Touch1!: You called touch1()\n");
+
+5     validate(1);
+
+6     exit(0);
+
+7 }
+
+你的任务是让CTARGET在getbuf执行返回语句后执行touch1的代码。注意，你的攻击字符串可以破坏栈中不直接和本阶段相关的部分，这不会造成问题，因为touch1会使得程序直接退出。
+
+要点说明：
+
+·       设计本阶段的攻击字符串所需的信息都从检查CTARGET的反汇编代码中获得。用objdump -d进行反汇编。
+
+·       主要思路是找到touch1的起始地址的字节表示的位置，使得getbuf结尾处的ret指令会将控制转移到touch1。
+
+·       注意字节顺序。
+
+·       可能需要用GDB单步跟踪调试getbuf的最后几条指令，确保它按照你期望的方式工作。
+
+·       buf在getbuf栈帧中的位置取决于编译时常数BUFFER_SIZE的值，以及GCC使用的分配策略。你需要检查反汇编带来来确定它的位置。
+
+3.2.        第二关
+
+第二关中，你需要在攻击字符串中注入少量代码。
+
+在ctarget文件中，函数touch2的代码如下：
+
+1 void touch2(unsigned val)
+
+2 {
+
+3     vlevel = 2;       /* Part of validation protocol */
+
+4     if (val == cookie) {
+
+5             printf("Touch2!: You called touch2(0x%.8x)\n", val);
+
+6             validate(2);
+
+7     } else {
+
+8             printf("Misfire: You called touch2(0x%.8x)\n", val);
+
+9             fail(2);
+
+10    }
+
+11    exit(0);
+
+12 }
+
+你的任务是使CTARGET执行touch2的代码而不是返回到test。在这个例子中，你必须让touch2以为它收到的参数是你的cookie。
+
+建议：
+
+·       需要确定你注入代码的地址的字节表示的位置，使getbuf代码最后的ret指令会将控制转移到那里。
+
+·       注意，函数的第一个参数是放在寄存器%rdi中的。
+
+·       你注入的代码必须将寄存器的值设定为你的cookie，然后利用ret指令将控制转移到touch2的第一条指令。
+
+·       不要在攻击代码中使用jmp或call指令。所有的控制转移都要使用ret指令，即使实际上你并不是要从一个函数调用返回。
+
+·       参见附录B学习如何生成指令序列的字节级表示。
+
+3.3.        第三关
+
+第三阶段还是代码注入攻击，但是是要传递字符串作为参数。
+
+ctarget文件中函数hexmatch和touch3的C代码如下：
+
+1 int hexmatch(unsigned val, char *sval)
+
+2 {
+
+3    char cbuf[110];
+
+4    /* Make position of check string unpredictable */
+
+5    char *s = cbuf + random() % 100;
+
+6    sprintf(s, "%.8x", val);
+
+7    return strncmp(sval, s, 9) == 0;
+
+8 }
+
+9
+
+10 void touch3(char *sval)
+
+11 {
+
+12    vlevel = 3;       /* Part of validation protocol */
+
+13    if (hexmatch(cookie, sval)) {
+
+14     printf("Touch3!: You called touch3(\"%s\")\n", sval);
+
+15     validate(3);
+
+16    } else {
+
+17     printf("Misfire: You called touch3(\"%s\")\n", sval);
+
+18     fail(3);
+
+19    }
+
+20    exit(0);
+
+21 }
+
+你的任务是让CTARGET执行touch3而不要返回到test。要使touch3以为你传递你的cookie的字符串表示作为它的参数。
+
+建议：
+
+·       你的攻击字符串中要包含你的cookie的字符串表示。这个字符串由8个十六进制数字组成（顺序是从最高位到最低位），开头没有“0x”。
+
+·       注意，C中的字符串表示是一个字节序列，最后跟一个值为0的字节。“man ascii”能够找到你需要的字符的字节表示。
+
+·       你的注入代码应该将寄存器%rdi设置为攻击字符串的地址。
+
+·       调用hexmatch和strncmp函数时，会将数据压入栈中，覆盖getbuf使用的缓冲区的内存，你需要很小心把你的cookie字符串表示放在哪里。
+
+4.   实验内容第二部分：面向返回的编程
+
+对程序RTARGET进行代码注入攻击要难一些，它采用了以下两种技术对抗攻击：
+
+·       采用了随机化，每次运行栈的位置都不同。所以无法决定你的注入代码应该放在哪里。
+
+·       将保存栈的内存区域设置为不可执行，所以即使你能把注入的代码的起始地址放到程序计数器中，程序也会报段错误失败。
+
+幸运的是，聪明的人们设计了一些策略，通过执行现有程序中的代码来做他们期望的事情，而不是注入新的代码。这种方法称为面向返回的编程（ROP）。
+
+例如，rtarget可能包含如下代码：
+
+void setval_210(unsigned *p)
+
+{
+
+    *p = 3347663060U;
+
+}
+
+这个函数不太可能会攻击到一个系统，但是这段代码反汇编出来的机器代码是：
+
+0000000000400f15 <setval_210>:
+
+  400f15:       c7 07 d4 48 89 c7       movl   $0xc78948d4,(%rdi)
+
+  400f1b:       c3                      retq
+
+字节序列48 49 c7是指令movq %rax, %rdi的编码。图2A展示了一些有用的movq指令的编码。你的RTARGET的攻击代码由一组类似于setval_210的函数组成，我们称为gadget farm。你的工作是从gadget farm中挑选出有用的gadget执行类似于前述第二关和第三关的攻击。
+
+要点说明：
+
+函数start_farm和end_farm之间的所有函数构成了你的gadget farm。不要用程序代码中的其他部分作为你的gadget。
+
+4.1.        第二关
+
+在第四阶段，你将重复第二阶段的攻击，不过要使用gadget farm里的gadget来攻击RTARGET程序。你的答案只使用如下指令类型的gadget，也只能使用前八个x86-64寄存器（%rax-%rdi）。
+
+movq：代码如图2A所示。
+
+popq；代码如图2B所示。
+
+ret：该指令编码为0xc3。
+
+nop：该指令编码为0x90。
+
+建议：
+
+·       只能用两个gadget来实现该次攻击。
+
+·       如果一个gadget使用了popq指令，那么它会从栈中弹出数据。这样一来，你的攻击代码能既包含gadget的地址也包含数据。
+
+Picture3.png
+
+图2. 指令的字节编码。所有的值均为十六进制。
+
+4.2.        第三关
+
+阶段五要求你对RTARGET程序进行ROP攻击，用指向你的cookie字符串的指针，使程序调用touch3函数。
+
+这一关，允许你使用函数start_farm和end_farm之间的所有gadget。除了第四阶段允许的那些指令，还允许使用movl指令（如图2C所示），以及图2D中的2字节指令，它们可以作为有功能的nop，不改变任何寄存器或内存的值，例如，andb %al, %al，这些指令对寄存器的低位字节做操作，但是不改变它们的值。
+
+提示：
+
+·       官方答案需要8个gadgets。
+
+附录A HEX2RAW的使用
+
+HEX2RAW的输入是一个十六进制格式的字符串，用两个十六进制数字表示一个字节值。例如，字符串“012345”，必须输入“30 31 32 33 34 35 00”。十六进制字符之间以空白符（空格或新行）分隔。
+
+可以把攻击字符串存入文件中，例如exploit.txt，以下列几种方式调用：
+
+1.      unix> cat exploit.txt | ./hex2raw | ./ctarget
+
+2.      unix> ./hex2raw < exploit.txt > exploit-raw.txt
+
+unix> ./ctarget < exploit-raw.txt
+
+这种方法也可以结合gdb使用。
+
+unix> gdb ctarget?
+
+(gdb) run < exploit-raw.txt
+
+3.      unix> ./hex2raw < exploit.txt > exploit-raw.txt
+
+unix> ./ctarget -i exploit-raw.txt
+
+这种方法也可以和gdb一起使用。
+
+附录B 生成字节代码
+
+假设编写一个汇编文件example.s，代码如下：
+
+# Example of hand-generated assembly code
+
+pushq   $0xabcdef             # Push value onto stack
+
+addq    $17,%rax              # Add 17 to %rax
+
+movl    %eax,%edx                       # Copy lower 32 bits to %edx
+
+可以汇编和反汇编文件：
+
+unix> gcc -c example.s?
+
+unix> objdump -d example.o > example.d
+
+生成的example.d包含如下内容：
+
+example.o: file format elf64-x86-64
+
+Disassembly of section .text:
+
+0000000000000000 <.text>:
+
+   0: 68 ef cd ab 00                         pushq  $0xabcdef
+
+   5: 48 83 c0 11                add    $0x11,%rax
+
+   9: 89 c2                                   mov    %eax,%edx
+
+由此可以推出这段代码的字节序列：
+
+68 ef cd ab 00 48 83 c0 11 89 c2
+
+可以通过HEX2RAW生成目标程序的输入字符串。也可以手动修改example.d的代码，得到下面的内容：
+
+   68 ef cd ab 00   /* pushq  $0xabcdef  */
+
+   48 83 c0 11     /* add    $0x11,%rax */
+
+   89 c2          /* mov    %eax,%edx  */
+
+这也是合法的HEX2RAW的输入。

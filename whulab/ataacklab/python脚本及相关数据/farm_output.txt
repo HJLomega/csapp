@@ -1,0 +1,29 @@
+  4018df:	8d 87 48 89 c7 90    	lea    -0x6f3876b8(%rdi),%eax
+  4018f3:	c7 07 68 89 c7 c3    	movl   $0xc3c78968,(%rdi)
+  4018fa:	b8 48 89 c7 90       	mov    $0x90c78948,%eax
+  401906:	c7 07 c8 89 c7 c3    	movl   $0xc3c789c8,(%rdi)
+  40191f:	8d 87 89 ce 20 c0    	lea    -0x3fdf3177(%rdi),%eax
+  401926:	b8 89 c2 08 d2       	mov    $0xd208c289,%eax
+  40192c:	8d 87 89 ce 90 c7    	lea    -0x386f3177(%rdi),%eax
+  401933:	c7 07 89 d1 c7 c5    	movl   $0xc5c7d189,(%rdi)
+  40193a:	8d 87 89 ce c4 c9    	lea    -0x363b3177(%rdi),%eax
+  401947:	8d 87 48 89 e0 94    	lea    -0x6b1f76b8(%rdi),%eax
+  40194e:	b8 48 89 e0 c2       	mov    $0xc2e08948,%eax
+  401954:	c7 07 8c 89 ce 90    	movl   $0x90ce898c,(%rdi)
+  40195b:	c7 07 48 89 e0 c7    	movl   $0xc7e08948,(%rdi)
+  401962:	c7 07 89 d1 38 c0    	movl   $0xc038d189,(%rdi)
+  401969:	b8 89 d1 20 c9       	mov    $0xc920d189,%eax
+  40196f:	c7 07 89 ce 18 c0    	movl   $0xc018ce89,(%rdi)
+  401976:	b8 89 c2 84 c9       	mov    $0xc984c289,%eax
+  40197c:	b8 89 ce c4 c0       	mov    $0xc0c4ce89,%eax
+  40198f:	b8 89 c2 c7 88       	mov    $0x88c7c289,%eax
+  401995:	8d 87 48 89 e0 c3    	lea    -0x3c1f76b8(%rdi),%eax
+  4019a3:	8d 87 89 c2 a4 c0    	lea    -0x3f5b3d77(%rdi),%eax
+  4019aa:	b8 89 c2 91 90       	mov    $0x9091c289,%eax
+  4019b0:	c7 07 ac 89 c2 94    	movl   $0x94c289ac,(%rdi)
+  4019b7:	c7 07 89 ce 94 db    	movl   $0xdb94ce89,(%rdi)
+  4019c4:	b8 89 d1 00 db       	mov    $0xdb00d189,%eax
+  4019ca:	b8 48 89 e0 c3       	mov    $0xc3e08948,%eax
+  4019de:	b8 89 d1 30 c0       	mov    $0xc030d189,%eax
+  4019e4:	b8 48 89 e0 c1       	mov    $0xc1e08948,%eax
+  4019ea:	b8 48 89 e0 94       	mov    $0x94e08948,%eax
